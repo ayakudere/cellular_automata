@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <style>
+          .cell-row {
+              width: 100%;
+              text-align: center;
+              z-index: 500;
+              height: 10px;
+              padding: 0;
+              margin: 0;
+          }
+
+          .cell {
+              height: 10px;
+              display: inline-block;
+              margin: 0;
+              padding: 0:
+              z-index: 1000;
+          }
+
+          .enabled {
+              background-color: red;
+          }
+
+          .disabled {
+              background-color: white;
+          }
+    </style>
+    
+    <script>
+        $(document).ready(function(){
+            const rowsPerRequest = 10;    
+            
+            function getCells(state, rule, n, callback) {
+                $.post("http://127.0.0.1:8000", { state: state, rule: rule, n: n }).done(function(data) {
+                    var a = JSON.parse(data);
+                    var cells = $('#cells');
+                    for (var i in a) {
+                        var row = makeCells(a[i]);
+                        $('#cells').width(row.actualWidth);
+                        $('#cells').append(row);
+                    }
+                    callback(JSON.stringify(a[a.length - 1]));
+                });
+            }
+            
+            $("#start").click(function() {
+                var state = JSON.stringify(makeArray($('.cell-row:last').children()));
+                var rule = $('#rule').val();
+                var n = $('#n').val();
+                if (n < rowsPerRequest)
+                    getCells(state, rule, n, function(state) {});
+                else {
+                    var c = function(state) { 
+                        n -= rowsPerRequest;
+                        if (n <= rowsPerRequest)
+                            getCells(state, rule, n, function(state) {});
+                        else {
+                            getCells(state, rule, rowsPerRequest, c);
+                        }
+                    }
+                    getCells(state, rule, rowsPerRequest, c);
+                }
+            });
+              
+            $('#rand').click(function(){
+                var n = $('#randn').val();
+                var maxw = $('#maxw').val();
+                var cRow = $('<div class="cell-row">');
+                while (n > 0) {
+                    var w = Math.floor(Math.random()*maxw);
+                    if (Math.random() > 0.5) {
+                        cRow.append($('<div class="cell enabled"' + 'style="width:' + w * 10 + 'px">'));
+                    } else {
+                        cRow.append($('<div class="cell disabled"' + 'style="width:' + w * 10 + 'px">'));
+                    }
+                    n -= w;
+                }
+                $('#cells').append(cRow);
+            });
+              
+            $('#cells').on('click', '.cell-row', function(){
+                $(this).append($('<div class="cell enabled" style="width:10px">'));
+            });
+              
+            $('#cells').on('click', '.disabled', function(){
+                $(this).removeClass('disabled');
+                $(this).addClass('enabled');
+                return false;
+            });
+              
+            $('#cells').on('click', '.enabled', function(){
+                $(this).removeClass('enabled');
+                $(this).addClass('disabled');
+                return false;
+            });
+        });
+
+        function makeArray(row) {
+            a = [];
+            row.each(function() {
+                var width = $(this).width() / 10
+                if ($(this).hasClass('enabled')) {
+                    a.push([1,width]);
+                } else {
+                    a.push([0,width]);
+                }
+            });
+            return a;
+        }
+
+        function makeCells(array) {
+            var cRow = $('<div class="cell-row">');
+            var rowWidth = 0;
+            for (var i in array) {
+                var width = array[i][1] * 10;
+                rowWidth += width;
+                if (array[i][0] == 1) {
+                    cRow.append($('<div class="cell enabled"' + 'style="width:' + width + 'px">'));
+                } else {
+                    cRow.append($('<div class="cell disabled"' + 'style="width:' + width + 'px">'));
+                }
+            }
+            cRow.actualWidth = rowWidth;
+            return cRow;
+        }
+    </script>
+</head>
+<body>
+    <div id="controls">
+        <form>
+            <label for="rule">Правило: </label><input id="rule" type="text" name="rule">
+            <label for="n">Количество шагов: </label><input id="n" type="text" name="n">
+            <input id="start" type="button" name="start" value="Поехали!">
+            <br>
+            <label for="randn">Ширина строки: </label><input id="randn" type="text" name="randn">
+            <label for="maxw">Максимальная ширина блока клеток: </label><input id="maxw" type="text" name="maxw">
+            <input id="rand" type="button" name="rand" value="Случайная строка">
+        </form>
+    </div>
+    <div id="cells">
+        <div class="cell-row">
+            <div class="cell enabled" style="width:10px"></div>
+        </div>
+    </div>
+</body>
